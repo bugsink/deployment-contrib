@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: CHANGEME-bugsink
+  namespace: CHANGEME
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: CHANGEME-bugsink 
+  template:
+    metadata:
+      labels:
+        app: CHANGEME-bugsink
+    spec:
+      containers:
+        - name: CHANGEME-bugsink
+          image: bugsink/bugsink:latest
+          env:
+            - name: SECRET_KEY
+              value: CHANGEME
+            - name: CREATE_SUPERUSER
+              value: admin:CHANGEME
+            - name: PORT
+              value: "8000"
+            - name: DATABASE_URL
+              value: mysql://bugsink:CHANGEME@mariadb.default.svc.cluster.local:3306/bugsink
+            - name: BEHIND_HTTPS_PROXY
+              value: "True"
+            - name: BASE_URL
+              value: "https://bugsink.CHANGEME.com"
+            - name: EMAIL_HOST
+              value: CHANGEME
+            - name: EMAIL_HOST_USER
+              value: CHANGEME
+            - name: EMAIL_HOST_PASSWORD
+              value: CHANGEME
+            - name: EMAIL_PORT
+              value: "465"
+            - name: EMAIL_USE_TLS
+              value: "true"
+            - name: DEFAULT_FROM_EMAIL
+              value: "CHANGEME"      
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: CHANGEME-bugsink-svc
+  namespace: CHANGEME
+spec:
+  type: ClusterIP
+  selector:
+    app: CHANGEME-bugsink
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bugsink-ingress
+  namespace: CHANGEME
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: default-redirect-https@kubernetescrd
+
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '3600'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '3600'
+    nginx.ingress.kubernetes.io/server-snippets: |
+      location / {
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_http_version 1.1;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header X-Real-IP $remote_addr;
+      }
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'	
+spec:
+  rules:
+  - host: bugsink.CHANGEME.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: CHANGEME-bugsink-svc
+            port:
+              number: 8000
+  tls:
+  - secretName: CHANGEME-bugsink-tls-secret
+    hosts:
+      - bugsink.CHANGEME.com
