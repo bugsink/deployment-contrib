@@ -1,0 +1,53 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: bugsink
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bugsink
+  template:
+    metadata:
+      labels:
+        app: bugsink
+    spec:
+      containers:
+        - name: bugsink
+          image: '<hidden>/bugsink/bugsink:1.1.2'
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          env:
+            - name: BASE_URL
+              value: <hidden>
+            - name: PORT
+              value: '8000'
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bugsink-dotenv
+                  key: DATABASE_URL
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bugsink-dotenv
+                  key: SECRET_KEY
+            - name: CREATE_SUPERUSER
+              valueFrom:
+                secretKeyRef:
+                  name: bugsink-dotenv
+                  key: CREATE_SUPERUSER
+          resources:
+            limits:
+              cpu: 200m
+              memory: 500Mi
+              ephemeral-storage: 500Mi
+            requests:
+              cpu: 200m
+              memory: 500Mi
+              ephemeral-storage: 500Mi
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600
